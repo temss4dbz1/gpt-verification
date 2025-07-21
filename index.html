@@ -2,41 +2,104 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ImbibeAI - Learn AI Smarter</title>
-    <style>
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: linear-gradient(to right, #0f2027, #203a43, #2c5364);
-            color: white;
-            text-align: center;
-            padding: 50px;
-        }
-        h1 {
-            font-size: 3em;
-            color: #00ffe7;
-        }
-        p {
-            font-size: 1.2em;
-            color: #c3e5e2;
-        }
-        a.button {
-            display: inline-block;
-            margin-top: 20px;
-            padding: 12px 24px;
-            background-color: #00ffe7;
-            color: #000;
-            text-decoration: none;
-            border-radius: 6px;
-            font-weight: bold;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ImbibeAI - Catch the Bot!</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to right, #1f1c2c, #928dab);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    h1 {
+      font-size: 3em;
+      margin-bottom: 10px;
+      color: #00ffe7;
+    }
+    p {
+      margin: 8px 0;
+    }
+    button {
+      margin-top: 15px;
+      padding: 10px 20px;
+      font-size: 1em;
+      border: none;
+      background-color: #00ffe7;
+      color: #000;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #gameArea {
+      position: relative;
+      width: 90vw;
+      height: 60vh;
+      border: 2px dashed #fff;
+      margin-top: 30px;
+    }
+    #bot {
+      position: absolute;
+      font-size: 2.5rem;
+      cursor: pointer;
+      display: none;
+    }
+  </style>
 </head>
 <body>
-    <h1>🤖 Welcome to ImbibeAI</h1>
-    <p>Explore cutting-edge AI tools and custom GPTs. Built on GitHub Pages.</p>
-    <a class="button" href="/.well-known/ai-plugin.json">View AI Plugin Spec</a>
+  <h1>🤖 Catch the Bot!</h1>
+  <p>Click the bot as many times as you can in 10 seconds.</p>
+  <p>Score: <span id="score">0</span></p>
+  <button onclick="startGame()">Start Game</button>
+
+  <div id="gameArea">
+    <div id="bot">🤖</div>
+  </div>
+
+  <script>
+    const bot = document.getElementById("bot");
+    const scoreDisplay = document.getElementById("score");
+    const gameArea = document.getElementById("gameArea");
+    let score = 0;
+    let gameInterval, endTimeout;
+
+    function getRandomPosition() {
+      const areaRect = gameArea.getBoundingClientRect();
+      const x = Math.random() * (areaRect.width - 40);
+      const y = Math.random() * (areaRect.height - 40);
+      return { x, y };
+    }
+
+    function moveBot() {
+      const { x, y } = getRandomPosition();
+      bot.style.left = `${x}px`;
+      bot.style.top = `${y}px`;
+    }
+
+    function startGame() {
+      score = 0;
+      scoreDisplay.textContent = score;
+      bot.style.display = "block";
+      moveBot();
+      bot.onclick = () => {
+        score++;
+        scoreDisplay.textContent = score;
+        moveBot();
+      };
+      gameInterval = setInterval(moveBot, 700);
+      endTimeout = setTimeout(endGame, 10000);
+    }
+
+    function endGame() {
+      clearInterval(gameInterval);
+      bot.style.display = "none";
+      alert("⏱ Time's up! Your score: " + score);
+    }
+  </script>
 </body>
 </html>
