@@ -1,89 +1,50 @@
-const dashboard = {
-  search: '',
-  suggestions: [],
-  summary: '',
-  loading: false,
-  map: null,
-  marker: null,
+const input = document.getElementById("addressInput");
+const mapContainer = document.getElementById("map");
+const resultDiv = document.getElementById("result");
 
-  async init() {
-    this.initMap();
-    await this.getLocationByIP();
-  },
+// Init Leaflet map
+const map = L.map("map").setView([39.5, -98.35], 4); // USA default
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: "© OpenStreetMap contributors",
+}).addTo(map);
 
-  initMap() {
-    this.map = L.map('map').setView([39.5, -98.35], 4); // Center of US
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(this.map);
-  },
+let marker = null;
 
-  async getLocationByIP() {
-    try {
-      const res = await fetch('https://ipapi.co/json/');
-      const data = await res.json();
-      const location = `${data.city}, ${data.region}, ${data.country_name}`;
-      this.placeMarker([data.latitude, data.longitude]);
-      await this.fetchAISummary(location);
-    } catch (e) {
-      console.error("Could not detect location by IP", e);
-    }
-  },
+input.addEventListener("keydown", async (e) => {
+  if (e.key === "Enter") {
+    const query = input.value.trim();
+    if (!query) return;
 
-  async autocompleteAddress() {
-    if (this.search.length < 3) return;
-    try {
-      const apiKey = '1f6f929d5bac4267bc787c1ac32ef9ee'; // 🔐 Replace with your Geoapify API Key
-      const url = `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(this.search)}&limit=5&apiKey=${apiKey}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      this.suggestions = data.features.map(f => ({
-        label: f.properties.formatted,
-        coords: [f.properties.lat, f.properties.lon]
-      }));
-    } catch (e) {
-      console.error("Autocomplete failed", e);
-    }
-  },
+    const geoResponse = await fetch(
+      `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(
+        query
+      )}&format=json&apiKey=1f6f929d5bac4267bc787c1ac32ef9ee`
+    );
 
-  async submitAddress() {
-    if (!this.search || this.suggestions.length === 0) return;
-    this.selectAddress(this.suggestions[0]);
-  },
+    const geoData = await geoResponse.json();
+    if (geoData.results && geoData.results.length > 0) {
+      const location = geoData.results[0];
+      const lat = location.lat;
+      const lon = location.lon;
+      const formatted = location.formatted;
 
-  selectAddress(suggestion) {
-    this.search = suggestion.label;
-    this.suggestions = [];
-    this.placeMarker(suggestion.coords);
-    this.fetchAISummary(suggestion.label);
-  },
+      if (marker) map.removeLayer(marker);
+      marker = L.marker([lat, lon]).addTo(map).bindPopup(formatted).openPopup();
+      map.setView([lat, lon], 12);
 
-  placeMarker(coords) {
-    if (this.marker) this.map.removeLayer(this.marker);
-    this.marker = L.marker(coords).addTo(this.map);
-    this.map.setView(coords, 13);
-  },
-
-  async fetchAISummary(location) {
-    this.loading = true;
-    this.summary = '';
-    try {
-      const res = await fetch('https://aged-art-a5fd.temss4dbz1.workers.dev/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ location })
+      // Call Cloudflare Worker with address
+      const summaryResponse = await fetch("https://aged-art-a5fd.temss4dbz1.workers.dev", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ location: formatted }),
       });
-      const data = await res.json();
-      this.summary = data.summary || "No summary available.";
-    } catch (e) {
-      console.error("AI summary fetch failed", e);
-      this.summary = "Could not fetch AI summary.";
-    } finally {
-      this.loading = false;
+
+      const summaryData = await summaryResponse.json();
+      resultDiv.innerText = summaryData.summary || "No summary returned.";
+    } else {
+      resultDiv.innerText = "Location not found.";
     }
   }
-};
-
-document.addEventListener("alpine:init", () => {
-  Alpine.data("dashboard", () => dashboard);
 });
