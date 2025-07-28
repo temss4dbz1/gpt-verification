@@ -31,7 +31,7 @@ const dashboard = {
 
   async autocompleteAddress() {
     if (!this.search || this.search.length < 3) return;
-    const res = await fetch(`https://api.geoapify.com/v1/geocode/autocomplete?text=${this.search}&apiKey=YOUR_AUTOCOMPLETE_API_KEY`);
+    const res = await fetch(`https://api.geoapify.com/v1/geocode/autocomplete?text=${this.search}&apiKey=1f6f929d5bac4267bc787c1ac32ef9ee`);
     const data = await res.json();
     this.suggestions = data.features.map(f => ({ label: f.properties.formatted, coords: [f.properties.lat, f.properties.lon] }));
   },
@@ -53,7 +53,7 @@ const dashboard = {
     this.loading = true;
     this.summary = '';
     try {
-      const res = await fetch('https://YOUR_WORKER_SUBDOMAIN.workers.dev/', {
+      const res = await fetch('https://aged-art-a5fd.temss4dbz1.workers.dev/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ location })
