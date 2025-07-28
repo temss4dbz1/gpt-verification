@@ -1,50 +1,81 @@
-const input = document.getElementById("addressInput");
-const mapContainer = document.getElementById("map");
-const resultDiv = document.getElementById("result");
+const apiKey = "1f6f929d5bac4267bc787c1ac32ef9ee"; // 🔁 Replace this
+const workerUrl = "https://aged-art-a5fd.temss4dbz1.workers.dev/"; // 🔁 Replace this
 
-// Init Leaflet map
-const map = L.map("map").setView([39.5, -98.35], 4); // USA default
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  attribution: "© OpenStreetMap contributors",
-}).addTo(map);
+document.addEventListener("alpine:init", () => {
+  Alpine.data("dashboard", () => ({
+    search: "",
+    suggestions: [],
+    summary: "",
+    loading: false,
+    map: null,
+    marker: null,
 
-let marker = null;
+    init() {
+      this.map = L.map("map").setView([39.5, -98.35], 4); // US center
 
-input.addEventListener("keydown", async (e) => {
-  if (e.key === "Enter") {
-    const query = input.value.trim();
-    if (!query) return;
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
+      }).addTo(this.map);
 
-    const geoResponse = await fetch(
-      `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(
-        query
-      )}&format=json&apiKey=1f6f929d5bac4267bc787c1ac32ef9ee`
-    );
+      this.marker = L.marker([0, 0]).addTo(this.map);
+    },
 
-    const geoData = await geoResponse.json();
-    if (geoData.results && geoData.results.length > 0) {
-      const location = geoData.results[0];
-      const lat = location.lat;
-      const lon = location.lon;
-      const formatted = location.formatted;
+    async autocompleteAddress() {
+      if (this.search.length < 3) return;
 
-      if (marker) map.removeLayer(marker);
-      marker = L.marker([lat, lon]).addTo(map).bindPopup(formatted).openPopup();
-      map.setView([lat, lon], 12);
+      const url = `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(this.search)}&apiKey=${apiKey}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      this.suggestions = data.features.map(f => ({
+        label: f.properties.formatted,
+        lat: f.geometry.coordinates[1],
+        lon: f.geometry.coordinates[0]
+      }));
+    },
 
-      // Call Cloudflare Worker with address
-      const summaryResponse = await fetch("https://aged-art-a5fd.temss4dbz1.workers.dev", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ location: formatted }),
-      });
+    selectAddress(address) {
+      this.search = address.label;
+      this.suggestions = [];
+      this.showLocation(address.lat, address.lon);
+      this.fetchSummary(address.label);
+    },
 
-      const summaryData = await summaryResponse.json();
-      resultDiv.innerText = summaryData.summary || "No summary returned.";
-    } else {
-      resultDiv.innerText = "Location not found.";
+    async submitAddress() {
+      if (!this.search) return;
+      this.suggestions = [];
+
+      const url = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(this.search)}&apiKey=${apiKey}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      const feature = data.features?.[0];
+      if (feature) {
+        const lat = feature.geometry.coordinates[1];
+        const lon = feature.geometry.coordinates[0];
+        this.showLocation(lat, lon);
+        this.fetchSummary(this.search);
+      }
+    },
+
+    showLocation(lat, lon) {
+      this.map.setView([lat, lon], 12);
+      this.marker.setLatLng([lat, lon]);
+    },
+
+    async fetchSummary(location) {
+      this.loading = true;
+      try {
+        const res = await fetch(workerUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ location })
+        });
+        const data = await res.json();
+        this.summary = data.summary || "No summary available.";
+      } catch (e) {
+        this.summary = "Error fetching summary.";
+      }
+      this.loading = false;
     }
-  }
+  }));
 });
+
